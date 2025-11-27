@@ -1,7 +1,7 @@
 """Application configuration settings."""
 
 from pathlib import Path
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -30,9 +30,10 @@ class Settings(BaseSettings):
     # File patterns for batch processing
     default_file_patterns: list[str] = ["*.txt", "*.md", "*.rst", "*.py", "*.json"]
 
-    class Config:
-        env_prefix = "KB_"
-        env_file = ".env"
+    model_config = SettingsConfigDict(
+        env_prefix="KB_",
+        env_file=".env",
+    )
 
     @property
     def lancedb_uri(self) -> Path:
