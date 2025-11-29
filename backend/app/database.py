@@ -1,30 +1,37 @@
 """LanceDB database connection and operations."""
 
-from datetime import datetime
-from typing import Optional
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import lancedb
-from lancedb.table import Table
 from loguru import logger
 
+if TYPE_CHECKING:
+    from lancedb.table import Table
+
 from app.config import settings
+from app.exceptions import IndexAlreadyExistsError, IndexNotFoundError
 from app.models import ChunkSchema
 
 
 class LanceDBManager:
-    """Manager for LanceDB operations."""
+    """Manager for LanceDB operations with multi-index support."""
 
     def __init__(self) -> None:
         """Initialize the database manager."""
-        self._db: Optional[lancedb.DBConnection] = None
-        self._table: Optional[Table] = None
+        self._db: lancedb.DBConnection | None = None
+        self._tables: dict[str, Table] = {}
 
     def connect(self) -> lancedb.DBConnection:
-        """Establish connection to LanceDB.
+        """
+        Establish connection to LanceDB.
 
         Returns:
             LanceDB connection instance.
+
         """
         if self._db is None:
             logger.info(f"Connecting to LanceDB at {settings.lancedb_uri}")
@@ -33,37 +40,98 @@ class LanceDBManager:
             logger.info("LanceDB connection established")
         return self._db
 
-    def get_or_create_table(self) -> Table:
-        """Get existing table or create a new one.
+    def create_index(self, index_name: str) -> bool:
+        """
+        Create a new index (table) in the database.
+
+        Args:
+            index_name: Name of the index to create.
+
+        Returns:
+            True if created successfully.
+
+        Raises:
+            IndexAlreadyExistsError: If index already exists.
+
+        """
+        db = self.connect()
+
+        if index_name in db.table_names():
+            raise IndexAlreadyExistsError(index_name)
+
+        logger.info(f"Creating new index: {index_name}")
+        table = db.create_table(index_name, schema=ChunkSchema)
+        self._tables[index_name] = table
+        logger.info(f"Index created successfully: {index_name}")
+        return True
+
+    def index_exists(self, index_name: str) -> bool:
+        """
+        Check if an index exists.
+
+        Args:
+            index_name: Name of the index to check.
+
+        Returns:
+            True if index exists, False otherwise.
+
+        """
+        db = self.connect()
+        return index_name in db.table_names()
+
+    def list_indexes(self) -> list[str]:
+        """
+        List all available indexes.
+
+        Returns:
+            List of index names.
+
+        """
+        db = self.connect()
+        return db.table_names()
+
+    def _get_table(self, index_name: str) -> Table:
+        """
+        Get a table by index name, with caching.
+
+        Args:
+            index_name: Name of the index.
 
         Returns:
             LanceDB table instance.
+
+        Raises:
+            IndexNotFoundError: If index does not exist.
+
         """
-        if self._table is not None:
-            return self._table
+        # Check cache first
+        if index_name in self._tables:
+            return self._tables[index_name]
 
         db = self.connect()
 
-        if settings.table_name in db.table_names():
-            logger.info(f"Opening existing table: {settings.table_name}")
-            self._table = db.open_table(settings.table_name)
-        else:
-            logger.info(f"Creating new table: {settings.table_name}")
-            self._table = db.create_table(settings.table_name, schema=ChunkSchema)
+        if index_name not in db.table_names():
+            raise IndexNotFoundError(index_name)
 
-        return self._table
+        logger.debug(f"Opening table: {index_name}")
+        table = db.open_table(index_name)
+        self._tables[index_name] = table
+        return table
 
-    def add_chunks(
+    def add_chunks(  # noqa: PLR0913
         self,
+        index_name: str,
         contents: list[str],
         embeddings: list[list[float]],
         source_document: str,
         chunk_offsets: list[int],
         token_counts: list[int],
     ) -> int:
-        """Add chunks with embeddings to the database.
+        """
+        Add chunks with embeddings to a specific index.
 
         Args:
+            index_name: Name of the target index.
             contents: List of chunk text contents.
             embeddings: List of embedding vectors (768-dim each).
             source_document: Source document identifier.
@@ -72,8 +140,12 @@ class LanceDBManager:
 
         Returns:
             Number of chunks added.
+
+        Raises:
+            IndexNotFoundError: If index does not exist.
+
         """
-        table = self.get_or_create_table()
+        table = self._get_table(index_name)
 
         chunks = [
             ChunkSchema(
@@ -83,43 +155,89 @@ class LanceDBManager:
                 source_document=source_document,
                 chunk_offset=offset,
                 token_count=token_count,
-                created_at=datetime.now(),
+                created_at=datetime.now(tz=UTC),
             )
             for content, embedding, offset, token_count in zip(
-                contents, embeddings, chunk_offsets, token_counts, strict=True
+                contents,
+                embeddings,
+                chunk_offsets,
+                token_counts,
+                strict=True,
             )
         ]
 
         table.add([chunk.model_dump() for chunk in chunks])
-        logger.info(f"Added {len(chunks)} chunks from {source_document}")
+        logger.info(
+            f"Added {len(chunks)} chunks to '{index_name}' from {source_document}",
+        )
 
         return len(chunks)
 
     def vector_search(
-        self, query_embedding: list[float], limit: int = 20
+        self,
+        index_name: str,
+        query_embedding: list[float],
+        limit: int = 20,
     ) -> list[dict]:
-        """Perform vector similarity search.
+        """
+        Perform vector similarity search on a specific index.
 
         Args:
+            index_name: Name of the index to search.
             query_embedding: Query embedding vector (768-dim).
             limit: Maximum number of results to return.
 
         Returns:
             List of matching chunks with scores.
+
+        Raises:
+            IndexNotFoundError: If index does not exist.
+
         """
-        table = self.get_or_create_table()
+        table = self._get_table(index_name)
 
         results = table.search(query_embedding).limit(limit).to_list()
 
-        logger.debug(f"Vector search returned {len(results)} candidates")
+        logger.debug(
+            f"Vector search on '{index_name}' returned {len(results)} candidates",
+        )
         return results
+
+    def delete_index(self, index_name: str) -> bool:
+        """
+        Delete an index from the database.
+
+        Args:
+            index_name: Name of the index to delete.
+
+        Returns:
+            True if deleted successfully.
+
+        Raises:
+            IndexNotFoundError: If index does not exist.
+
+        """
+        db = self.connect()
+
+        if index_name not in db.table_names():
+            raise IndexNotFoundError(index_name)
+
+        logger.info(f"Deleting index: {index_name}")
+        db.drop_table(index_name)
+
+        # Remove from cache
+        if index_name in self._tables:
+            del self._tables[index_name]
+
+        logger.info(f"Index deleted: {index_name}")
+        return True
 
     def close(self) -> None:
         """Close the database connection."""
         if self._db is not None:
             logger.info("Closing LanceDB connection")
             self._db = None
-            self._table = None
+            self._tables.clear()
 
 
 # Global database manager instance
