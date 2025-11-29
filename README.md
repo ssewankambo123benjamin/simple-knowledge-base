@@ -21,6 +21,20 @@ simple-knowledge-base uses semantic chunking and vector embeddings to understand
 - **Local & Private** — Everything runs on your machine, no cloud required
 - **Simple API** — Clean REST endpoints for easy integration
 
+## 📸 Screenshots
+
+### Search Knowledge Base
+
+Search through your documents using natural language queries. Results are ranked by semantic relevance with visual indicators showing match quality.
+
+![Search Interface](.github/images/simple-kb-search.png)
+
+### Add Knowledge
+
+Create indexes to organize your documents and add content through single file upload or batch directory processing.
+
+![Add Knowledge Interface](.github/images/simple-kb-add-knowledge.png)
+
 ## Quick Start
 
 ```bash
