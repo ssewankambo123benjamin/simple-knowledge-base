@@ -1,11 +1,12 @@
 """Pydantic models for API requests/responses and LanceDB schema."""
 
+from __future__ import annotations
+
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from lancedb.pydantic import LanceModel, Vector
 from pydantic import BaseModel, Field
-
 
 # =============================================================================
 # LanceDB Schema Models
@@ -20,12 +21,22 @@ class ChunkSchema(LanceModel):
     embedding: Vector(768) = Field(..., description="768-dimensional embedding vector")  # type: ignore[valid-type]
     source_document: str = Field(..., description="Source document identifier/path")
     chunk_offset: int = Field(
-        ..., description="Character offset in the original document"
+        ...,
+        description="Character offset in the original document",
     )
     token_count: int = Field(..., description="Number of tokens in the chunk")
     created_at: datetime = Field(
-        default_factory=datetime.now, description="Timestamp when chunk was created"
+        default_factory=datetime.now,
+        description="Timestamp when chunk was created",
     )
+
+
+# =============================================================================
+# Index Name Pattern
+# =============================================================================
+
+# Pattern: starts with letter, followed by alphanumeric, underscore, or hyphen
+INDEX_NAME_PATTERN = r"^[a-zA-Z][a-zA-Z0-9_-]*$"
 
 
 # =============================================================================
@@ -33,12 +44,32 @@ class ChunkSchema(LanceModel):
 # =============================================================================
 
 
+class CreateIndexRequest(BaseModel):
+    """Request model for creating a new index."""
+
+    index_name: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        pattern=INDEX_NAME_PATTERN,
+        description="Index name (starts with letter, alphanumeric/underscore/hyphen only)",
+    )
+
+
 class EncodeDocRequest(BaseModel):
     """Request model for single document encoding."""
 
-    file_path: str = Field(..., description="Absolute path to the document file")
-    metadata: Optional[dict[str, Any]] = Field(
-        default=None, description="Optional metadata for the document"
+    document_path: str = Field(..., description="Absolute path to the document file")
+    index_name: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        pattern=INDEX_NAME_PATTERN,
+        description="Target index name",
+    )
+    metadata: dict[str, Any] | None = Field(
+        default=None,
+        description="Optional metadata for the document",
     )
 
 
@@ -46,7 +77,14 @@ class EncodeBatchRequest(BaseModel):
     """Request model for batch document encoding from a directory."""
 
     directory_path: str = Field(..., description="Absolute path to the directory")
-    file_patterns: Optional[list[str]] = Field(
+    index_name: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        pattern=INDEX_NAME_PATTERN,
+        description="Target index name",
+    )
+    file_patterns: list[str] | None = Field(
         default=None,
         description="File patterns to include (e.g., ['*.txt', '*.md']). Defaults to common text formats.",
     )
@@ -56,14 +94,39 @@ class QueryRequest(BaseModel):
     """Request model for semantic search queries."""
 
     query: str = Field(..., min_length=1, description="Search query text")
+    index_name: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        pattern=INDEX_NAME_PATTERN,
+        description="Index to search in",
+    )
     top_k: int = Field(
-        default=5, ge=1, le=100, description="Number of results to return"
+        default=5,
+        ge=1,
+        le=100,
+        description="Number of results to return",
     )
 
 
 # =============================================================================
 # API Response Models
 # =============================================================================
+
+
+class CreateIndexResponse(BaseModel):
+    """Response model for index creation."""
+
+    index_name: str = Field(..., description="Name of the created index")
+    status: str = Field(..., description="Operation status: 'success' or 'error'")
+    message: str = Field(..., description="Status message")
+
+
+class ListIndexesResponse(BaseModel):
+    """Response model for listing indexes."""
+
+    indexes: list[str] = Field(default_factory=list, description="List of index names")
+    count: int = Field(..., description="Number of indexes")
 
 
 class SearchResult(BaseModel):
@@ -80,14 +143,18 @@ class EncodeDocResponse(BaseModel):
 
     status: str = Field(..., description="Operation status: 'success' or 'error'")
     message: str = Field(..., description="Status message")
-    document_path: Optional[str] = Field(
-        default=None, description="Path of the encoded document"
+    index_name: str = Field(..., description="Index the document was added to")
+    document_path: str | None = Field(
+        default=None,
+        description="Path of the encoded document",
     )
-    chunk_count: Optional[int] = Field(
-        default=None, description="Number of chunks created"
+    chunk_count: int | None = Field(
+        default=None,
+        description="Number of chunks created",
     )
-    token_counts: Optional[list[int]] = Field(
-        default=None, description="Token count for each chunk"
+    token_counts: list[int] | None = Field(
+        default=None,
+        description="Token count for each chunk",
     )
 
 
@@ -96,8 +163,10 @@ class EncodeBatchResponse(BaseModel):
 
     status: str = Field(..., description="Operation status: 'success' or 'error'")
     message: str = Field(..., description="Status message")
-    documents_queued: Optional[int] = Field(
-        default=None, description="Number of documents queued for processing"
+    index_name: str = Field(..., description="Index the documents are being added to")
+    documents_queued: int | None = Field(
+        default=None,
+        description="Number of documents queued for processing",
     )
 
 
@@ -106,19 +175,23 @@ class QueryResponse(BaseModel):
 
     status: str = Field(..., description="Operation status: 'success' or 'error'")
     message: str = Field(..., description="Status message")
+    index_name: str = Field(..., description="Index that was searched")
     results: list[SearchResult] = Field(
-        default_factory=list, description="List of search results"
+        default_factory=list,
+        description="List of search results",
     )
-    query: Optional[str] = Field(default=None, description="The original query")
+    query: str | None = Field(default=None, description="The original query")
 
 
 class ErrorResponse(BaseModel):
     """Standard error response model."""
 
     status: str = Field(
-        default="error", description="Always 'error' for error responses"
+        default="error",
+        description="Always 'error' for error responses",
     )
     message: str = Field(..., description="Error message")
-    detail: Optional[str] = Field(
-        default=None, description="Detailed error information"
+    detail: str | None = Field(
+        default=None,
+        description="Detailed error information",
     )
