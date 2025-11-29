@@ -6,19 +6,28 @@ import {
   ContentLayout,
   Flashbar,
   Header,
+  Icon,
   SpaceBetween,
   StatusIndicator,
+  Tabs,
 } from '@cloudscape-design/components';
 import type { FlashbarProps } from '@cloudscape-design/components';
 
 import { SearchInterface } from './components/SearchInterface';
 import { SearchResults } from './components/SearchResults';
+import { AddKnowledge } from './components/AddKnowledge';
 import { queryKnowledgeBase, checkHealth } from './api/client';
 import type { SearchResult } from './api/types';
 
+// Application logo
+import logoSvg from '/idea-bulb-learning-knowledge-education-book-idea.svg';
+
 function App() {
+  const [activeTab, setActiveTab] = useState('search');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [currentQuery, setCurrentQuery] = useState('');
+  const [currentIndex, setCurrentIndex] = useState('');
+  const [searchTimeMs, setSearchTimeMs] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isHealthy, setIsHealthy] = useState<boolean | null>(null);
   const [notifications, setNotifications] = useState<FlashbarProps.MessageDefinition[]>([]);
@@ -52,13 +61,24 @@ function App() {
     ]);
   }, []);
 
-  const handleSearch = useCallback(async (query: string) => {
+  const handleSearch = useCallback(async (query: string, indexName: string) => {
     setIsLoading(true);
     setCurrentQuery(query);
+    setCurrentIndex(indexName);
     setResults([]);
+    setSearchTimeMs(null);
+
+    const startTime = performance.now();
 
     try {
-      const response = await queryKnowledgeBase({ query, top_k: 5 });
+      const response = await queryKnowledgeBase({ 
+        query, 
+        index_name: indexName,
+        top_k: 5 
+      });
+      
+      const endTime = performance.now();
+      setSearchTimeMs(Math.round(endTime - startTime));
       setResults(response.results);
       
       if (response.results.length === 0) {
@@ -67,6 +87,7 @@ function App() {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       addNotification('error', 'Search failed', message);
+      setSearchTimeMs(null);
     } finally {
       setIsLoading(false);
     }
@@ -93,7 +114,10 @@ function App() {
                 )
               }
             >
-              Knowledge Base
+              <SpaceBetween size="xs" direction="horizontal" alignItems="center">
+                <img src={logoSvg} alt="Logo" style={{ height: '32px', width: '32px' }} />
+                <span>Simple Knowledge Base</span>
+              </SpaceBetween>
             </Header>
           }
         >
@@ -104,16 +128,48 @@ function App() {
                 <Box variant="code">http://localhost:8000</Box>
               </Alert>
             )}
-            
-            <SearchInterface
-              onSearch={handleSearch}
-              isLoading={isLoading}
-            />
-            
-            <SearchResults
-              results={results}
-              query={currentQuery}
-              isLoading={isLoading}
+
+            <Tabs
+              activeTabId={activeTab}
+              onChange={({ detail }) => setActiveTab(detail.activeTabId)}
+              tabs={[
+                {
+                  id: 'search',
+                  label: (
+                    <SpaceBetween size="xs" direction="horizontal" alignItems="center">
+                      <Icon name="search" />
+                      <span>Search</span>
+                    </SpaceBetween>
+                  ),
+                  content: (
+                    <SpaceBetween size="l">
+                      <SearchInterface
+                        onSearch={handleSearch}
+                        isLoading={isLoading}
+                      />
+                      <SearchResults
+                        results={results}
+                        query={currentQuery}
+                        indexName={currentIndex}
+                        searchTimeMs={searchTimeMs}
+                        isLoading={isLoading}
+                      />
+                    </SpaceBetween>
+                  ),
+                },
+                {
+                  id: 'add-knowledge',
+                  label: (
+                    <SpaceBetween size="xs" direction="horizontal" alignItems="center">
+                      <Icon name="upload" />
+                      <span>Add Knowledge</span>
+                    </SpaceBetween>
+                  ),
+                  content: (
+                    <AddKnowledge onNotification={addNotification} />
+                  ),
+                },
+              ]}
             />
           </SpaceBetween>
         </ContentLayout>

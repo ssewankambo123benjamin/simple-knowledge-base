@@ -1,5 +1,5 @@
 [project]
-name = "knowledge-base-backend"
+name = "simple-knowledge-base-backend"
 version = "0.1.0"
 description = "Semantic Knowledge Base API with FastAPI, LanceDB, and ML-powered search"
 readme = "README.md"
