@@ -1,12 +1,13 @@
 /**
  * AddKnowledge Component
- * Page for creating indexes and adding documents to the knowledge base
- * 
+ * Page for adding documents to the knowledge base
+ *
  * Flow:
- * 1. Choose index mode: "Use existing" or "Create new"
- * 2. Select/create index
- * 3. Choose document source: "Single" or "Batch"
- * 4. Add documents
+ * 1. Select an existing index
+ * 2. Choose document source: "Single" or "Batch"
+ * 3. Add documents
+ *
+ * Note: Index creation/deletion is handled in the "Manage Indexes" tab
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -30,10 +31,7 @@ import {
 } from '@cloudscape-design/components';
 
 import { IndexSelector } from './IndexSelector';
-import { createIndex, uploadDocument, encodeBatch, getIndexRecordCount } from '../api/client';
-
-// Index name validation pattern (must match backend)
-const INDEX_NAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
+import { uploadDocument, encodeBatch, getIndexRecordCount } from '../api/client';
 
 // Allowed file extensions for single document upload
 const ALLOWED_EXTENSIONS = ['.md', '.txt'];
@@ -55,19 +53,36 @@ interface AddKnowledgeProps {
     options?: { id?: string; loading?: boolean; dismissible?: boolean }
   ) => string;
   onRemoveNotification: (id: string) => void;
+  preSelectedIndex?: string | null;
+  onClearPreSelectedIndex?: () => void;
 }
 
-export function AddKnowledge({ onNotification, onRemoveNotification }: AddKnowledgeProps) {
-  // Index mode: use existing or create new
-  const [indexMode, setIndexMode] = useState<'existing' | 'new'>('existing');
-  
-  // Create Index state
-  const [newIndexName, setNewIndexName] = useState('');
-  const [isCreatingIndex, setIsCreatingIndex] = useState(false);
+export function AddKnowledge({ 
+  onNotification, 
+  onRemoveNotification,
+  preSelectedIndex,
+  onClearPreSelectedIndex,
+}: AddKnowledgeProps) {
+  // Index refresh trigger (for when indexes change externally)
   const [indexRefreshTrigger, setIndexRefreshTrigger] = useState(0);
 
   // Document encoding state
-  const [selectedIndex, setSelectedIndex] = useState<string | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<string | null>(preSelectedIndex ?? null);
+
+  // Handle pre-selected index from navigation
+  useEffect(() => {
+    if (preSelectedIndex) {
+      setSelectedIndex(preSelectedIndex);
+    }
+  }, [preSelectedIndex]);
+
+  // Handle index change - clear pre-selection when user manually changes
+  const handleIndexChange = useCallback((indexName: string | null) => {
+    setSelectedIndex(indexName);
+    if (onClearPreSelectedIndex && indexName !== preSelectedIndex) {
+      onClearPreSelectedIndex();
+    }
+  }, [preSelectedIndex, onClearPreSelectedIndex]);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [isEncodingDoc, setIsEncodingDoc] = useState(false);
   
@@ -85,35 +100,6 @@ export function AddKnowledge({ onNotification, onRemoveNotification }: AddKnowle
 
   // Document source mode selection
   const [encodeMode, setEncodeMode] = useState<'single' | 'batch'>('single');
-  
-  // Determine if we have a valid index to work with
-  const activeIndex = indexMode === 'existing' ? selectedIndex : (isCreatingIndex ? null : selectedIndex);
-
-  // Validate index name
-  const isValidIndexName = INDEX_NAME_PATTERN.test(newIndexName);
-  const indexNameError = newIndexName && !isValidIndexName
-    ? 'Must start with a letter, followed by letters, numbers, underscores, or hyphens'
-    : '';
-
-  // Handle create index
-  const handleCreateIndex = useCallback(async () => {
-    if (!newIndexName || !isValidIndexName) return;
-
-    setIsCreatingIndex(true);
-    try {
-      const response = await createIndex({ index_name: newIndexName });
-      onNotification('success', 'Index created', response.message);
-      setNewIndexName('');
-      setIndexRefreshTrigger((prev) => prev + 1);
-      // Auto-select the new index
-      setSelectedIndex(newIndexName);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to create index';
-      onNotification('error', 'Failed to create index', message);
-    } finally {
-      setIsCreatingIndex(false);
-    }
-  }, [newIndexName, isValidIndexName, onNotification]);
 
   // Handle file upload and encoding
   const handleUploadDocument = useCallback(async () => {
@@ -278,10 +264,10 @@ export function AddKnowledge({ onNotification, onRemoveNotification }: AddKnowle
       >
         <ColumnLayout columns={3} variant="text-grid">
           <div>
-            <Box variant="awsui-key-label">1. Select or Create Index</Box>
+            <Box variant="awsui-key-label">1. Select Index</Box>
             <Box color="text-body-secondary">
-              Choose an existing index or create a new one. An index is a 
-              container for organizing related documents.
+              Choose an existing index to add documents to. To create a new
+              index, use the "Manage Indexes" tab.
             </Box>
           </div>
           <div>
@@ -316,101 +302,30 @@ export function AddKnowledge({ onNotification, onRemoveNotification }: AddKnowle
         }
       >
         <SpaceBetween size="l">
-          {/* Step 1: Index Selection Mode */}
-          <FormField 
-            label="Step 1: Choose Index"
-            description="Select an existing index or create a new one"
-          >
-            <Tiles
-              columns={2}
-              value={indexMode}
-              onChange={({ detail }) => {
-                setIndexMode(detail.value as 'existing' | 'new');
-                // Clear selection when switching modes
-                if (detail.value === 'new') {
-                  setSelectedIndex(null);
-                }
-              }}
-              items={[
-                {
-                  value: 'existing',
-                  label: 'Use Existing Index',
-                  description: 'Add documents to an index you\'ve already created',
-                },
-                {
-                  value: 'new',
-                  label: 'Create New Index',
-                  description: 'Create a new index and add documents to it',
-                },
-              ]}
-            />
-          </FormField>
-
-          {/* Existing Index Selection */}
-          {indexMode === 'existing' && (
-            <IndexSelector
-              selectedIndex={selectedIndex}
-              onIndexChange={setSelectedIndex}
-              refreshTrigger={indexRefreshTrigger}
-              description="Select the index to add documents to"
-            />
-          )}
-
-          {/* New Index Creation */}
-          {indexMode === 'new' && (
-            <SpaceBetween size="m">
-              <FormField
-                label="Index Name"
-                description="A unique name for your new index (letters, numbers, underscores, hyphens)"
-                errorText={indexNameError}
-                constraintText="Must start with a letter"
-              >
-                <SpaceBetween size="xs" direction="horizontal">
-                  <div style={{ flexGrow: 1 }}>
-                    <Input
-                      value={newIndexName}
-                      onChange={({ detail }) => setNewIndexName(detail.value)}
-                      placeholder="my-knowledge-base"
-                      disabled={isCreatingIndex}
-                    />
-                  </div>
-                  <Button
-                    variant="primary"
-                    onClick={handleCreateIndex}
-                    loading={isCreatingIndex}
-                    loadingText="Creating..."
-                    disabled={!newIndexName || !isValidIndexName}
-                    iconName="add-plus"
-                  >
-                    Create
-                  </Button>
-                </SpaceBetween>
-              </FormField>
-              
-              {selectedIndex && (
-                <Alert type="success" statusIconAriaLabel="Success">
-                  Index <strong>{selectedIndex}</strong> created successfully! You can now add documents below.
-                </Alert>
-              )}
-            </SpaceBetween>
-          )}
+          {/* Step 1: Index Selection */}
+          <IndexSelector
+            selectedIndex={selectedIndex}
+            onIndexChange={handleIndexChange}
+            refreshTrigger={indexRefreshTrigger}
+            label="Step 1: Select Index"
+            description="Choose the index to add documents to"
+          />
 
           {/* Show prompt if no index selected */}
-          {!activeIndex && (
+          {!selectedIndex && (
             <Alert type="info">
-              {indexMode === 'existing' 
-                ? 'Select an index above to add documents. If you don\'t have any indexes, switch to "Create New Index".'
-                : 'Enter an index name and click "Create" to continue.'}
+              Select an index above to add documents. If you don't have any indexes,
+              go to the "Manage Indexes" tab to create one.
             </Alert>
           )}
 
           {/* Step 2: Add Documents (only shown when index is selected) */}
-          {activeIndex && (
+          {selectedIndex && (
             <>
               <Box variant="h3" padding={{ top: 's' }}>
                 <SpaceBetween size="xs" direction="horizontal" alignItems="center">
                   <span>Step 2: Add Documents to</span>
-                  <Box color="text-status-info" fontWeight="bold">{activeIndex}</Box>
+                  <Box color="text-status-info" fontWeight="bold">{selectedIndex}</Box>
                 </SpaceBetween>
               </Box>
 
@@ -585,7 +500,7 @@ export function AddKnowledge({ onNotification, onRemoveNotification }: AddKnowle
           <ColumnLayout columns={2} variant="text-grid">
             <div>
               <Box variant="awsui-key-label">Target Index</Box>
-              <Box fontWeight="bold">{activeIndex}</Box>
+              <Box fontWeight="bold">{selectedIndex}</Box>
             </div>
             <div>
               <Box variant="awsui-key-label">Current Records</Box>

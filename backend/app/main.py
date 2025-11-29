@@ -25,6 +25,7 @@ from app.models import (
     INDEX_NAME_PATTERN,
     CreateIndexRequest,
     CreateIndexResponse,
+    DeleteIndexResponse,
     EncodeBatchRequest,
     EncodeBatchResponse,
     EncodeDocRequest,
@@ -243,6 +244,31 @@ async def get_record_count(index_name: str) -> IndexRecordCountResponse:
     return IndexRecordCountResponse(
         index_name=index_name,
         record_count=count,
+    )
+
+
+@app.delete(
+    "/indexes/{index_name}",
+    response_model=DeleteIndexResponse,
+    responses={
+        404: {"model": ErrorResponse, "description": "Index not found"},
+    },
+)
+async def delete_index(index_name: str) -> DeleteIndexResponse:
+    """
+    Delete an index from the knowledge base.
+
+    Permanently removes the specified index and all its data from LanceDB.
+    This action cannot be undone.
+    """
+    logger.info(f"Deleting index: {index_name}")
+
+    db_manager.delete_index(index_name)
+
+    return DeleteIndexResponse(
+        index_name=index_name,
+        status="success",
+        message=f"Index '{index_name}' deleted successfully",
     )
 
 

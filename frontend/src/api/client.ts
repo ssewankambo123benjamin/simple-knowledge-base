@@ -5,6 +5,7 @@
 import type {
   CreateIndexRequest,
   CreateIndexResponse,
+  DeleteIndexResponse,
   EncodeBatchRequest,
   EncodeBatchResponse,
   EncodeDocRequest,
@@ -72,6 +73,16 @@ export async function listIndexes(): Promise<ListIndexesResponse> {
 export async function getIndexRecordCount(indexName: string): Promise<IndexRecordCountResponse> {
   const response = await fetch(`${API_BASE_URL}/indexes/${encodeURIComponent(indexName)}/count`);
   return handleResponse<IndexRecordCountResponse>(response);
+}
+
+/**
+ * Delete an index
+ */
+export async function deleteIndex(indexName: string): Promise<DeleteIndexResponse> {
+  const response = await fetch(`${API_BASE_URL}/indexes/${encodeURIComponent(indexName)}`, {
+    method: 'DELETE',
+  });
+  return handleResponse<DeleteIndexResponse>(response);
 }
 
 // =============================================================================

@@ -130,6 +130,24 @@ GET /indexes/{index_name}/count
 }
 ```
 
+### Delete Index
+
+Permanently delete an index and all its data.
+
+```bash
+DELETE /indexes/{index_name}
+```
+
+**Response:**
+
+```json
+{
+  "index_name": "my_documents",
+  "status": "success",
+  "message": "Index 'my_documents' deleted successfully"
+}
+```
+
 ### Encode Single Document (Path)
 
 Add a document to a specific index using a server-side file path.

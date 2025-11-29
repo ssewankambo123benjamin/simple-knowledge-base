@@ -42,6 +42,12 @@ export interface IndexRecordCountResponse {
   record_count: number;
 }
 
+export interface DeleteIndexResponse {
+  index_name: string;
+  status: string;
+  message: string;
+}
+
 // =============================================================================
 // Document Encoding Types
 // =============================================================================

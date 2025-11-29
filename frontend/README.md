@@ -60,6 +60,9 @@ frontend/
 │   │   ├── types.ts       # TypeScript interfaces
 │   │   └── index.ts       # Exports
 │   ├── components/
+│   │   ├── AddKnowledge.tsx     # Document upload form
+│   │   ├── IndexSelector.tsx    # Reusable index dropdown
+│   │   ├── ManageIndexes.tsx    # Index creation/deletion
 │   │   ├── SearchInterface.tsx  # Search input form
 │   │   └── SearchResults.tsx    # Results display
 │   ├── App.tsx            # Main application
@@ -90,6 +93,35 @@ Results display with:
 - Progress bar for visual relevance
 - Expandable content previews
 - Metadata display (chunk offset, content length)
+
+### ManageIndexes
+
+Index management with:
+
+- Tile selector to switch between Create/Delete modes
+- Create new index with name validation
+- "Add Knowledge" button after creation for quick navigation
+- Delete index with confirmation modal
+- Real-time record count display
+
+### AddKnowledge
+
+Document ingestion with:
+
+- Index selector dropdown
+- Single file upload (drag & drop)
+- Batch directory processing
+- Progress tracking with polling
+- Supported formats: `.md`, `.txt`
+
+### IndexSelector
+
+Reusable index dropdown with:
+
+- Auto-loading of available indexes
+- Record count display per index
+- Filtering/search capability
+- Refresh trigger for external updates
 
 ## Configuration
 
