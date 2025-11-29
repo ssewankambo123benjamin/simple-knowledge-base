@@ -16,6 +16,7 @@ import type { FlashbarProps } from '@cloudscape-design/components';
 import { SearchInterface } from './components/SearchInterface';
 import { SearchResults } from './components/SearchResults';
 import { AddKnowledge } from './components/AddKnowledge';
+import { ManageIndexes } from './components/ManageIndexes';
 import { queryKnowledgeBase, checkHealth } from './api/client';
 import type { SearchResult } from './api/types';
 
@@ -23,7 +24,7 @@ import type { SearchResult } from './api/types';
 import logoSvg from '/idea-bulb-learning-knowledge-education-book-idea.svg';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('search');
+  const [activeTab, setActiveTab] = useState('manage-indexes');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [currentQuery, setCurrentQuery] = useState('');
   const [currentIndex, setCurrentIndex] = useState('');
@@ -31,6 +32,9 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isHealthy, setIsHealthy] = useState<boolean | null>(null);
   const [notifications, setNotifications] = useState<FlashbarProps.MessageDefinition[]>([]);
+  
+  // Pre-selected index for navigating from Manage Indexes to Add Knowledge
+  const [preSelectedIndex, setPreSelectedIndex] = useState<string | null>(null);
 
   // Check backend health on mount
   useEffect(() => {
@@ -123,6 +127,17 @@ function App() {
     }
   }, [addNotification]);
 
+  // Navigate to Add Knowledge tab with a pre-selected index
+  const handleNavigateToAddKnowledge = useCallback((indexName: string) => {
+    setPreSelectedIndex(indexName);
+    setActiveTab('add-knowledge');
+  }, []);
+
+  // Clear pre-selected index when user manually changes it
+  const handleClearPreSelectedIndex = useCallback(() => {
+    setPreSelectedIndex(null);
+  }, []);
+
   return (
     <AppLayout
       notifications={<Flashbar items={notifications} stackItems />}
@@ -164,6 +179,39 @@ function App() {
               onChange={({ detail }) => setActiveTab(detail.activeTabId)}
               tabs={[
                 {
+                  id: 'manage-indexes',
+                  label: (
+                    <SpaceBetween size="xs" direction="horizontal" alignItems="center">
+                      <Icon name="folder" />
+                      <span>Manage Indexes</span>
+                    </SpaceBetween>
+                  ),
+                  content: (
+                    <ManageIndexes
+                      onNotification={addNotification}
+                      onRemoveNotification={removeNotification}
+                      onNavigateToAddKnowledge={handleNavigateToAddKnowledge}
+                    />
+                  ),
+                },
+                {
+                  id: 'add-knowledge',
+                  label: (
+                    <SpaceBetween size="xs" direction="horizontal" alignItems="center">
+                      <Icon name="upload" />
+                      <span>Add Knowledge</span>
+                    </SpaceBetween>
+                  ),
+                  content: (
+                    <AddKnowledge 
+                      onNotification={addNotification} 
+                      onRemoveNotification={removeNotification}
+                      preSelectedIndex={preSelectedIndex}
+                      onClearPreSelectedIndex={handleClearPreSelectedIndex}
+                    />
+                  ),
+                },
+                {
                   id: 'search',
                   label: (
                     <SpaceBetween size="xs" direction="horizontal" alignItems="center">
@@ -185,21 +233,6 @@ function App() {
                         isLoading={isLoading}
                       />
                     </SpaceBetween>
-                  ),
-                },
-                {
-                  id: 'add-knowledge',
-                  label: (
-                    <SpaceBetween size="xs" direction="horizontal" alignItems="center">
-                      <Icon name="upload" />
-                      <span>Add Knowledge</span>
-                    </SpaceBetween>
-                  ),
-                  content: (
-                    <AddKnowledge 
-                      onNotification={addNotification} 
-                      onRemoveNotification={removeNotification}
-                    />
                   ),
                 },
               ]}

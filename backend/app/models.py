@@ -136,6 +136,14 @@ class IndexRecordCountResponse(BaseModel):
     record_count: int = Field(..., description="Number of records in the index")
 
 
+class DeleteIndexResponse(BaseModel):
+    """Response model for index deletion."""
+
+    index_name: str = Field(..., description="Name of the deleted index")
+    status: str = Field(..., description="Operation status: 'success' or 'error'")
+    message: str = Field(..., description="Status message")
+
+
 class SearchResult(BaseModel):
     """Model for a single search result."""
 

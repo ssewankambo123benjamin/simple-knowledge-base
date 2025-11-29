@@ -117,6 +117,64 @@ class TestGetRecordCountEndpoint:
         assert response.status_code == 404
 
 
+class TestDeleteIndexEndpoint:
+    """Tests for DELETE /indexes/{index_name} endpoint."""
+
+    def test_delete_index_success(self, client: TestClient):
+        """Test deleting an existing index."""
+        # Create an index first
+        client.post("/create", json={"index_name": "index_to_delete"})
+
+        # Delete it
+        response = client.delete("/indexes/index_to_delete")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "success"
+        assert data["index_name"] == "index_to_delete"
+        assert "deleted" in data["message"].lower()
+
+        # Verify it's gone
+        list_response = client.get("/indexes")
+        assert "index_to_delete" not in list_response.json()["indexes"]
+
+    def test_delete_nonexistent_index_returns_404(self, client: TestClient):
+        """Test deleting a non-existent index returns 404."""
+        response = client.delete("/indexes/nonexistent_index")
+
+        assert response.status_code == 404
+
+    def test_delete_index_with_data(
+        self,
+        client: TestClient,
+        sample_document: Path,
+    ):
+        """Test deleting an index that contains documents."""
+        # Create index and add a document
+        client.post("/create", json={"index_name": "index_with_data"})
+        client.post(
+            "/encode_doc",
+            json={
+                "document_path": str(sample_document),
+                "index_name": "index_with_data",
+            },
+        )
+
+        # Verify it has data
+        count_response = client.get("/indexes/index_with_data/count")
+        assert count_response.json()["record_count"] > 0
+
+        # Delete it
+        response = client.delete("/indexes/index_with_data")
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "success"
+
+        # Verify it's gone
+        list_response = client.get("/indexes")
+        assert "index_with_data" not in list_response.json()["indexes"]
+
+
 class TestEncodeDocEndpoint:
     """Tests for /encode_doc endpoint."""
 
