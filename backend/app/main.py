@@ -20,6 +20,8 @@ from app.exceptions import (
     DocumentNotFoundError,
     IndexAlreadyExistsError,
     IndexNotFoundError,
+    LLMSTxtFetchError,
+    LLMSTxtParseError,
 )
 from app.models import (
     INDEX_NAME_PATTERN,
@@ -32,13 +34,15 @@ from app.models import (
     EncodeDocResponse,
     ErrorResponse,
     IndexRecordCountResponse,
+    IngestLLMSTxtRequest,
+    IngestLLMSTxtResponse,
     ListIndexesResponse,
     QueryRequest,
     QueryResponse,
     SearchResult,
     UploadDocResponse,
 )
-from app.services import document_processor, model_manager
+from app.services import document_processor, llms_txt_scraper, model_manager
 
 
 @asynccontextmanager
@@ -163,6 +167,40 @@ async def value_error_handler(
             "status": "error",
             "message": str(exc),
             "detail": str(exc),
+        },
+    )
+
+
+@app.exception_handler(LLMSTxtFetchError)
+async def llms_txt_fetch_error_handler(
+    _request: Request,
+    exc: LLMSTxtFetchError,
+) -> JSONResponse:
+    """Handle LLMSTxtFetchError exceptions."""
+    logger.warning(f"Failed to fetch llms.txt: {exc.url} - {exc.reason}")
+    return JSONResponse(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        content={
+            "status": "error",
+            "message": str(exc),
+            "detail": f"Failed to fetch URL '{exc.url}': {exc.reason}",
+        },
+    )
+
+
+@app.exception_handler(LLMSTxtParseError)
+async def llms_txt_parse_error_handler(
+    _request: Request,
+    exc: LLMSTxtParseError,
+) -> JSONResponse:
+    """Handle LLMSTxtParseError exceptions."""
+    logger.warning(f"Failed to parse llms.txt: {exc.url} - {exc.reason}")
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={
+            "status": "error",
+            "message": str(exc),
+            "detail": f"Failed to parse llms.txt from '{exc.url}': {exc.reason}",
         },
     )
 
@@ -553,6 +591,121 @@ async def encode_batch(request: EncodeBatchRequest) -> EncodeBatchResponse:
         message=f"Batch processing started for {len(documents)} documents",
         index_name=request.index_name,
         documents_queued=len(documents),
+    )
+
+
+# =============================================================================
+# llms.txt Ingestion Endpoint
+# =============================================================================
+
+
+async def _process_llms_txt_async(
+    llms_txt_url: str,
+    index_name: str,
+    sections: list[str] | None,
+) -> None:
+    """
+    Background task to process llms.txt URL ingestion.
+
+    Args:
+        llms_txt_url: URL to the llms.txt file.
+        index_name: Target index name.
+        sections: Optional section names to filter.
+
+    """
+    logger.info(f"Starting llms.txt ingestion: {llms_txt_url} -> index: {index_name}")
+
+    try:
+        documents_processed, sections_found = await llms_txt_scraper.process_llms_txt(
+            llms_txt_url=llms_txt_url,
+            index_name=index_name,
+            sections=sections,
+        )
+
+        logger.info(
+            f"llms.txt ingestion complete for '{index_name}': "
+            f"{documents_processed} documents, sections: {sections_found}",
+        )
+
+    except Exception:  # noqa: BLE001
+        logger.exception(f"llms.txt ingestion failed for: {llms_txt_url}")
+    finally:
+        # Clean up HTTP client
+        await llms_txt_scraper.close()
+
+
+@app.post(
+    "/ingest_llms_txt",
+    response_model=IngestLLMSTxtResponse,
+    responses={
+        400: {"model": ErrorResponse, "description": "Invalid URL or request"},
+        404: {"model": ErrorResponse, "description": "Index not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+        502: {"model": ErrorResponse, "description": "Failed to fetch llms.txt URL"},
+    },
+)
+async def ingest_llms_txt(request: IngestLLMSTxtRequest) -> IngestLLMSTxtResponse:
+    """
+    Ingest markdown documents from an llms.txt URL.
+
+    Fetches the llms.txt file, parses it to extract markdown URLs,
+    downloads all markdown files, and processes them into the specified index.
+    Processing runs in the background after initial validation.
+    """
+    logger.info(
+        f"Ingesting llms.txt: {request.llms_txt_url} -> index: {request.index_name}",
+    )
+
+    # Validate URL format
+    if not request.llms_txt_url.startswith(("http://", "https://")):
+        msg = f"Invalid URL: '{request.llms_txt_url}'. Must start with http:// or https://"
+        raise ValueError(msg)
+
+    # Verify index exists (raises IndexNotFoundError if not)
+    if not db_manager.index_exists(request.index_name):
+        raise IndexNotFoundError(request.index_name)
+
+    # Fetch and parse llms.txt to get section info and URL count
+    # This validates the URL and content before starting background processing
+    llms_txt_content = await llms_txt_scraper.fetch_url(request.llms_txt_url)
+    parsed = llms_txt_scraper.parse_llms_txt(llms_txt_content, request.llms_txt_url)
+
+    sections_found = list(parsed.keys())
+
+    # Filter sections if specified
+    if request.sections:
+        parsed = llms_txt_scraper.filter_sections(parsed, request.sections)
+
+    # Get URL count
+    urls = llms_txt_scraper.get_unique_urls(parsed)
+    documents_queued = len(urls)
+
+    if documents_queued == 0:
+        return IngestLLMSTxtResponse(
+            status="success",
+            message="No documents found matching the specified sections",
+            index_name=request.index_name,
+            source_url=request.llms_txt_url,
+            documents_queued=0,
+            sections_found=sections_found,
+        )
+
+    # Start background processing (fire and forget)
+    _ = asyncio.create_task(  # noqa: RUF006
+        _process_llms_txt_async(
+            request.llms_txt_url,
+            request.index_name,
+            request.sections,
+        ),
+    )
+
+    return IngestLLMSTxtResponse(
+        status="success",
+        message=f"Started ingestion of {documents_queued} documents from llms.txt",
+        index_name=request.index_name,
+        source_url=request.llms_txt_url,
+        documents_queued=documents_queued,
+        sections_found=sections_found,
     )
 
 

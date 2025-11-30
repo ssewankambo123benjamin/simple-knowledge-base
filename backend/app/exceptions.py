@@ -48,3 +48,23 @@ class InvalidIndexNameError(Exception):
             "Must start with a letter and contain only alphanumeric characters, "
             "underscores, or hyphens.",
         )
+
+
+class LLMSTxtFetchError(Exception):
+    """Raised when fetching llms.txt or markdown content fails."""
+
+    def __init__(self, url: str, reason: str) -> None:
+        """Initialize with URL and failure reason."""
+        self.url = url
+        self.reason = reason
+        super().__init__(f"Failed to fetch '{url}': {reason}")
+
+
+class LLMSTxtParseError(Exception):
+    """Raised when parsing llms.txt content fails."""
+
+    def __init__(self, url: str, reason: str) -> None:
+        """Initialize with URL and parse error reason."""
+        self.url = url
+        self.reason = reason
+        super().__init__(f"Failed to parse llms.txt from '{url}': {reason}")
