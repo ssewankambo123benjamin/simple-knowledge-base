@@ -224,3 +224,45 @@ class ErrorResponse(BaseModel):
         default=None,
         description="Detailed error information",
     )
+
+
+# =============================================================================
+# llms.txt Ingestion Models
+# =============================================================================
+
+
+class IngestLLMSTxtRequest(BaseModel):
+    """Request model for llms.txt URL ingestion."""
+
+    llms_txt_url: str = Field(
+        ...,
+        description="Full URL to the llms.txt file (e.g., https://docs.example.com/llms.txt)",
+    )
+    index_name: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        pattern=INDEX_NAME_PATTERN,
+        description="Target index name",
+    )
+    sections: list[str] | None = Field(
+        default=None,
+        description="Optional list of section names to include. If None, all sections are processed.",
+    )
+
+
+class IngestLLMSTxtResponse(BaseModel):
+    """Response model for llms.txt ingestion."""
+
+    status: str = Field(..., description="Operation status: 'success' or 'error'")
+    message: str = Field(..., description="Status message")
+    index_name: str = Field(..., description="Target index name")
+    source_url: str = Field(..., description="The llms.txt URL that was processed")
+    documents_queued: int = Field(
+        default=0,
+        description="Number of markdown documents queued for processing",
+    )
+    sections_found: list[str] = Field(
+        default_factory=list,
+        description="Section names found in llms.txt",
+    )

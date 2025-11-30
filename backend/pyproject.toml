@@ -19,6 +19,7 @@ dependencies = [
     "torch>=2.5.0",
     "pyarrow>=18.1.0",
     "python-multipart>=0.0.12",
+    "httpx>=0.28.0",
 ]
 
 [project.optional-dependencies]

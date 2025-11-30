@@ -31,7 +31,7 @@ import {
 } from '@cloudscape-design/components';
 
 import { IndexSelector } from './IndexSelector';
-import { uploadDocument, encodeBatch, getIndexRecordCount } from '../api/client';
+import { uploadDocument, encodeBatch, getIndexRecordCount, ingestLLMSTxt } from '../api/client';
 
 // Allowed file extensions for single document upload
 const ALLOWED_EXTENSIONS = ['.md', '.txt'];
@@ -99,7 +99,12 @@ export function AddKnowledge({
   const [preProcessRecordCount, setPreProcessRecordCount] = useState<number | null>(null);
 
   // Document source mode selection
-  const [encodeMode, setEncodeMode] = useState<'single' | 'batch'>('single');
+  const [encodeMode, setEncodeMode] = useState<'single' | 'batch' | 'llms-txt'>('single');
+
+  // llms.txt ingestion state
+  const [llmsTxtUrl, setLlmsTxtUrl] = useState('');
+  const [isIngestingLlmsTxt, setIsIngestingLlmsTxt] = useState(false);
+  const [showLlmsTxtConfirmModal, setShowLlmsTxtConfirmModal] = useState(false);
 
   // Handle file upload and encoding
   const handleUploadDocument = useCallback(async () => {
@@ -254,6 +259,111 @@ export function AddKnowledge({
     setShowBatchConfirmModal(true);
   }, [selectedIndex]);
 
+  // Handle showing llms.txt confirmation modal
+  const handleShowLlmsTxtConfirm = useCallback(async () => {
+    if (selectedIndex) {
+      try {
+        const response = await getIndexRecordCount(selectedIndex);
+        setPreProcessRecordCount(response.record_count);
+      } catch {
+        setPreProcessRecordCount(null);
+      }
+    }
+    setShowLlmsTxtConfirmModal(true);
+  }, [selectedIndex]);
+
+  // Handle llms.txt ingestion
+  const handleIngestLlmsTxt = useCallback(async () => {
+    if (!selectedIndex || !llmsTxtUrl) return;
+
+    const initialCount = preProcessRecordCount ?? 0;
+    const notificationId = `llms-txt-${Date.now()}`;
+    let lastCount = initialCount;
+    let stablePolls = 0;
+
+    setIsIngestingLlmsTxt(true);
+
+    try {
+      const response = await ingestLLMSTxt({
+        llms_txt_url: llmsTxtUrl,
+        index_name: selectedIndex,
+      });
+
+      const docsQueued = response.documents_queued;
+
+      // Show progress notification
+      onNotification(
+        'in-progress',
+        'llms.txt ingestion in progress',
+        `Processing ${docsQueued} markdown files from ${response.source_url}...`,
+        { id: notificationId, loading: true, dismissible: false }
+      );
+
+      setLlmsTxtUrl('');
+      setIsIngestingLlmsTxt(false);
+
+      // Start polling for completion
+      pollingIntervalRef.current = setInterval(async () => {
+        try {
+          const countResponse = await getIndexRecordCount(selectedIndex);
+          const currentCount = countResponse.record_count;
+          const addedChunks = currentCount - initialCount;
+
+          // Update progress notification
+          onNotification(
+            'in-progress',
+            'llms.txt ingestion in progress',
+            `Added ${addedChunks} chunks so far... (${currentCount} total in index)`,
+            { id: notificationId, loading: true, dismissible: false }
+          );
+
+          // Check if count has stabilized (same for 2 consecutive polls)
+          if (currentCount === lastCount && addedChunks > 0) {
+            stablePolls++;
+            if (stablePolls >= 2) {
+              // Processing complete
+              if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+                pollingIntervalRef.current = null;
+              }
+
+              // Remove progress notification and show success
+              onRemoveNotification(notificationId);
+              onNotification(
+                'success',
+                'llms.txt ingestion complete',
+                `Successfully added ${addedChunks} chunks to "${selectedIndex}" (${currentCount} total records)`
+              );
+
+              // Refresh index counts
+              setIndexRefreshTrigger((prev) => prev + 1);
+            }
+          } else {
+            stablePolls = 0;
+            lastCount = currentCount;
+          }
+        } catch {
+          // Ignore polling errors, will retry
+        }
+      }, 3000); // Poll every 3 seconds
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to start llms.txt ingestion';
+      onNotification('error', 'llms.txt ingestion failed', message);
+      setIsIngestingLlmsTxt(false);
+    }
+  }, [selectedIndex, llmsTxtUrl, preProcessRecordCount, onNotification, onRemoveNotification]);
+
+  // Helper to validate llms.txt URL
+  const isValidLlmsTxtUrl = useCallback((url: string): boolean => {
+    if (!url) return false;
+    try {
+      const parsed = new URL(url);
+      return (parsed.protocol === 'http:' || parsed.protocol === 'https:');
+    } catch {
+      return false;
+    }
+  }, []);
+
   return (
     <SpaceBetween size="l">
       {/* Help Section - How it works */}
@@ -332,9 +442,9 @@ export function AddKnowledge({
               {/* Document Source Mode Selection */}
               <FormField label="Document Source">
                 <Tiles
-                  columns={2}
+                  columns={3}
                   value={encodeMode}
-                  onChange={({ detail }) => setEncodeMode(detail.value as 'single' | 'batch')}
+                  onChange={({ detail }) => setEncodeMode(detail.value as 'single' | 'batch' | 'llms-txt')}
                   items={[
                     {
                       value: 'single',
@@ -345,6 +455,11 @@ export function AddKnowledge({
                       value: 'batch',
                       label: 'Batch Directory',
                       description: 'Process .md and .txt files from a directory',
+                    },
+                    {
+                      value: 'llms-txt',
+                      label: 'llms.txt URL',
+                      description: 'Ingest markdown from documentation site',
                     },
                   ]}
                 />
@@ -458,6 +573,46 @@ export function AddKnowledge({
                   </SpaceBetween>
                 </Form>
               )}
+
+              {/* llms.txt Mode */}
+              {encodeMode === 'llms-txt' && (
+                <Form
+                  actions={
+                    <Button
+                      variant="primary"
+                      onClick={handleShowLlmsTxtConfirm}
+                      loading={isIngestingLlmsTxt}
+                      loadingText="Starting ingestion..."
+                      disabled={!isValidLlmsTxtUrl(llmsTxtUrl)}
+                      iconName="external"
+                    >
+                      Ingest from URL
+                    </Button>
+                  }
+                >
+                  <SpaceBetween size="m">
+                    <FormField
+                      label="llms.txt URL"
+                      description="Full URL to the llms.txt file"
+                      constraintText="Example: https://docs.anthropic.com/llms.txt"
+                    >
+                      <Input
+                        value={llmsTxtUrl}
+                        onChange={({ detail }) => setLlmsTxtUrl(detail.value)}
+                        placeholder="https://docs.example.com/llms.txt"
+                        type="url"
+                        disabled={isIngestingLlmsTxt}
+                      />
+                    </FormField>
+
+                    <Alert type="info" header="How it works">
+                      The llms.txt file contains links to markdown documentation. 
+                      All referenced markdown files will be downloaded and added to your knowledge base.
+                      Processing runs in the background.
+                    </Alert>
+                  </SpaceBetween>
+                </Form>
+              )}
             </>
           )}
         </SpaceBetween>
@@ -520,6 +675,64 @@ export function AddKnowledge({
           <Alert type="info">
             This will process all .md and .txt files in the specified directory. 
             Processing runs in the background and may take some time depending on the number of documents.
+          </Alert>
+        </SpaceBetween>
+      </Modal>
+
+      {/* llms.txt Ingestion Confirmation Modal */}
+      <Modal
+        visible={showLlmsTxtConfirmModal}
+        onDismiss={() => setShowLlmsTxtConfirmModal(false)}
+        header="Confirm llms.txt Ingestion"
+        size="medium"
+        closeAriaLabel="Close confirmation"
+        footer={
+          <Box float="right">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button 
+                variant="link" 
+                onClick={() => setShowLlmsTxtConfirmModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="primary" 
+                onClick={() => {
+                  setShowLlmsTxtConfirmModal(false);
+                  handleIngestLlmsTxt();
+                }}
+              >
+                Start Ingestion
+              </Button>
+            </SpaceBetween>
+          </Box>
+        }
+      >
+        <SpaceBetween size="m">
+          <Box variant="p">
+            You are about to ingest markdown documentation from an llms.txt URL:
+          </Box>
+          
+          <ColumnLayout columns={2} variant="text-grid">
+            <div>
+              <Box variant="awsui-key-label">Target Index</Box>
+              <Box fontWeight="bold">{selectedIndex}</Box>
+            </div>
+            <div>
+              <Box variant="awsui-key-label">Current Records</Box>
+              <Box>{preProcessRecordCount !== null ? preProcessRecordCount.toLocaleString() : '—'}</Box>
+            </div>
+          </ColumnLayout>
+          
+          <div>
+            <Box variant="awsui-key-label">llms.txt URL</Box>
+            <Box variant="code" fontSize="body-s">{llmsTxtUrl}</Box>
+          </div>
+
+          <Alert type="info">
+            This will fetch the llms.txt file, parse all markdown links, download the referenced 
+            documentation, and add it to your knowledge base. Processing runs in the background 
+            and may take some time depending on the number of documents.
           </Alert>
         </SpaceBetween>
       </Modal>

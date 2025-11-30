@@ -12,6 +12,8 @@ import type {
   EncodeDocResponse,
   HealthResponse,
   IndexRecordCountResponse,
+  IngestLLMSTxtRequest,
+  IngestLLMSTxtResponse,
   ListIndexesResponse,
   QueryRequest,
   QueryResponse,
@@ -126,6 +128,22 @@ export async function uploadDocument(file: File, indexName: string): Promise<Upl
     body: formData,
   });
   return handleResponse<UploadDocResponse>(response);
+}
+
+// =============================================================================
+// llms.txt Ingestion
+// =============================================================================
+
+/**
+ * Ingest markdown documents from an llms.txt URL
+ */
+export async function ingestLLMSTxt(request: IngestLLMSTxtRequest): Promise<IngestLLMSTxtResponse> {
+  const response = await fetch(`${API_BASE_URL}/ingest_llms_txt`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<IngestLLMSTxtResponse>(response);
 }
 
 // =============================================================================

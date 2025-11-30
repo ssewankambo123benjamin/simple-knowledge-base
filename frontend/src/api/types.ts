@@ -108,6 +108,25 @@ export interface QueryResponse {
 }
 
 // =============================================================================
+// llms.txt Ingestion Types
+// =============================================================================
+
+export interface IngestLLMSTxtRequest {
+  llms_txt_url: string;
+  index_name: string;
+  sections?: string[];
+}
+
+export interface IngestLLMSTxtResponse {
+  status: string;
+  message: string;
+  index_name: string;
+  source_url: string;
+  documents_queued: number;
+  sections_found: string[];
+}
+
+// =============================================================================
 // Error Types
 // =============================================================================
 
